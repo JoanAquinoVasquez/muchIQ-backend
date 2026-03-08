@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Core Models
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      Role     @default(EXPLORER)
+  points    Int      @default(0)   // For rewards
+  totalExp  Int      @default(0)   // For levels
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  profile   Json?
+
+  discoveries  Discovery[]
+  redemptions  Redemption[]
+  achievements UserAchievement[]
+}
+
+model Place {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  latitude    Float
+  longitude   Float
+  category    Category @default(GENERAL)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  partners     Partner[]
+  routePlaces  RoutePlace[]
+  discoveries  Discovery[]
+}
+
+model Route {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  category    Category @default(GENERAL)
+  difficulty  Difficulty @default(EASY)
+  metadata    Json?    // For AI-generated attributes
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  places      RoutePlace[]
+}
+
+model RoutePlace {
+  id      String @id @default(uuid())
+  order   Int
+  routeId String
+  placeId String
+  route   Route  @relation(fields: [routeId], references: [id])
+  place   Place  @relation(fields: [placeId], references: [id])
+
+  @@unique([routeId, placeId])
+}
+
+// Gamification Models
+model Discovery {
+  id        String   @id @default(uuid())
+  userId    String
+  placeId   String
+  points    Int      @default(10) // Points earned for this discovery
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  place     Place    @relation(fields: [placeId], references: [id])
+}
+
+model Reward {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  cost        Int      // Points needed
+  stock       Int      @default(-1) // -1 for infinite
+  partnerId   String
+  partner     Partner  @relation(fields: [partnerId], references: [id])
+  createdAt   DateTime @default(now())
+
+  redemptions Redemption[]
+}
+
+model Redemption {
+  id        String   @id @default(uuid())
+  userId    String
+  rewardId  String
+  code      String   @unique // Generated code to claim
+  claimed   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  reward    Reward   @relation(fields: [rewardId], references: [id])
+}
+
+model Achievement {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  icon        String?
+  criteria    Json?    // e.g. { "type": "visit_count", "target": 5 }
+
+  users       UserAchievement[]
+}
+
+model UserAchievement {
+  id            String   @id @default(uuid())
+  userId        String
+  achievementId String
+  createdAt     DateTime @default(now())
+
+  user          User        @relation(fields: [userId], references: [id])
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+}
+
+model Partner {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  userId      String?
+  placeId     String
+  place       Place    @relation(fields: [placeId], references: [id])
+  rewards     Reward[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum Role {
+  EXPLORER
+  PARTNER
+  ADMIN
+}
+
+enum Category {
+  GENERAL
+  GASTRONOMY
+  CULTURE
+  NATURE
+  ADVENTURE
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
