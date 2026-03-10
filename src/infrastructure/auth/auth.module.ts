@@ -5,7 +5,9 @@ import { AuthService } from '../../application/auth/auth.service';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { PermissionsGuard } from './guards/permissions.guard';
 
+// PrismaService lo provee PrismaModule (global), no hay que importarlo aquí
 @Module({
     imports: [
         UsersModule,
@@ -15,8 +17,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
             signOptions: { expiresIn: '1d' },
         }),
     ],
-    providers: [AuthService, JwtStrategy],
+    providers: [AuthService, JwtStrategy, PermissionsGuard],
     controllers: [AuthController],
-    exports: [AuthService],
+    exports: [AuthService, PermissionsGuard],
 })
-export class AuthModule { }
+export class AuthModule {}

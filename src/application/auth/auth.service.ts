@@ -1,20 +1,25 @@
 import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
+import { UsersService } from '../users/users.service';
 import { User } from '../../domain/users/user.entity';
+import { RegisterDto } from '../../infrastructure/auth/dto/register.dto';
+import { AuthResponse } from '../../infrastructure/auth/interfaces/auth-response.interface';
+import { JwtPayload } from '../../infrastructure/auth/interfaces/jwt-payload.interface';
+
+type UserWithoutPassword = Omit<User, 'password'>;
 
 @Injectable()
 export class AuthService {
     constructor(
-        private usersService: UsersService,
-        private jwtService: JwtService,
-    ) { }
+        private readonly usersService: UsersService,
+        private readonly jwtService: JwtService,
+    ) {}
 
-    async register(data: any): Promise<any> {
-        const existingUser = await this.usersService.findByEmail(data.email);
-        if (existingUser) {
-            throw new ConflictException('User already exists');
+    async register(data: RegisterDto): Promise<UserWithoutPassword> {
+        const existing = await this.usersService.findByEmail(data.email);
+        if (existing) {
+            throw new ConflictException('Ya existe un usuario con ese email');
         }
 
         const hashedPassword = await bcrypt.hash(data.password, 10);
@@ -23,28 +28,36 @@ export class AuthService {
             password: hashedPassword,
         });
 
-        const { password, ...result } = user;
-        return result;
+        const { password: _pw, ...result } = user;
+        return result as UserWithoutPassword;
     }
 
-    async validateUser(email: string, pass: string): Promise<any> {
+    async validateUser(email: string, pass: string): Promise<UserWithoutPassword | null> {
         const user = await this.usersService.findByEmail(email);
-        if (user && (await bcrypt.compare(pass, user.password!))) {
-            const { password, ...result } = user;
-            return result;
-        }
-        return null;
+        if (!user || !user.password) return null;
+
+        const passwordMatch = await bcrypt.compare(pass, user.password);
+        if (!passwordMatch) return null;
+
+        const { password: _pw, ...result } = user;
+        return result as UserWithoutPassword;
     }
 
-    async login(user: any) {
-        const roleName = user.role?.name || 'EXPLORER';
-        const payload = { email: user.email, sub: user.id, role: roleName };
+    login(user: UserWithoutPassword): AuthResponse {
+        const roleName = user.role?.name ?? 'EXPLORER';
+
+        const payload: JwtPayload = {
+            sub: user.id,
+            email: user.email,
+            role: roleName,
+        };
+
         return {
             access_token: this.jwtService.sign(payload),
             user: {
                 id: user.id,
                 email: user.email,
-                name: user.name,
+                name: user.name ?? null,
                 role: roleName,
             },
         };
