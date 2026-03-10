@@ -1,3 +1,11 @@
+// =============================================================
+// schema.prisma
+// Arquitecto: Senior DB Architect
+// Descripción: Schema completo sin enums, todo relacional por ID
+// Relaciones many-to-many explícitas, empresas/locales, módulos
+// con jerarquía parent_id, y control de permisos por rol
+// =============================================================
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -6,18 +14,151 @@ datasource db {
   provider = "postgresql"
 }
 
-// Core Models
+// =============================================================
+// LOOKUP TABLES — Reemplazan TODOS los enums
+// Seed obligatorio al inicializar el proyecto
+// =============================================================
+
+/// Roles de usuario: EXPLORER | PARTNER | ADMIN
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  color       String?  // Hex para UI
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  users       User[]
+  roleModules RoleModule[]
+
+  @@map("roles")
+}
+
+/// Tipos de media: IMAGE | VIDEO | DOCUMENT | AUDIO
+model MediaType {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  extension   String? // jpg, mp4, pdf...
+
+  media       Media[]
+
+  @@map("media_types")
+}
+
+/// Tipos de notificación: SYSTEM | REWARD | LEVEL_UP | SOCIAL
+model NotificationType {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  icon        String?
+  color       String?
+
+  notifications Notification[]
+
+  @@map("notification_types")
+}
+
+/// Niveles de dificultad para rutas: EASY | MEDIUM | HARD | EXPERT
+model DifficultyLevel {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  color       String? // Hex para Flutter UI
+  order       Int     @default(0)
+
+  routes      Route[]
+
+  @@map("difficulty_levels")
+}
+
+/// Acciones de permiso: VIEW | CREATE | EDIT | DELETE
+model PermissionAction {
+  id          String  @id @default(uuid())
+  name        String  @unique // VIEW, CREATE, EDIT, DELETE
+  description String?
+  code        String  @unique // view, create, edit, delete (snake_case para lógica)
+
+  roleModulePermissions RoleModulePermission[]
+
+  @@map("permission_actions")
+}
+
+// =============================================================
+// MÓDULOS Y PERMISOS
+// Árbol jerárquico: Módulo padre → hijos
+// Ejemplo: "Configuración" → ["Empresas", "Roles", "Usuarios"]
+// =============================================================
+
+/// Módulos del sistema con soporte de jerarquía (parent_id)
+model Module {
+  id          String   @id @default(uuid())
+  name        String   @unique         // e.g. "Configuración", "Empresas"
+  description String?
+  icon        String?                  // Nombre de ícono Flutter/Lucide
+  path        String?                  // Ruta frontend: /admin/companies
+  code        String   @unique         // Clave técnica: config, companies, roles
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)     // Orden en sidebar
+  createdAt   DateTime @default(now())
+
+  // Auto-relación para árbol de módulos
+  parentId    String?
+  parent      Module?  @relation("ModuleTree", fields: [parentId], references: [id])
+  children    Module[] @relation("ModuleTree")
+
+  roleModules RoleModule[]
+
+  @@map("modules")
+}
+
+/// Tabla pivote: Rol ↔ Módulo (qué módulos ve cada rol)
+model RoleModule {
+  id       String @id @default(uuid())
+  roleId   String
+  moduleId String
+  role     Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  module   Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, moduleId])
+
+  permissions RoleModulePermission[]
+
+  @@map("role_modules")
+}
+
+/// Permisos específicos por rol+módulo (ver, crear, editar, eliminar)
+model RoleModulePermission {
+  id                 String          @id @default(uuid())
+  roleModuleId       String
+  permissionActionId String
+  roleModule         RoleModule      @relation(fields: [roleModuleId], references: [id], onDelete: Cascade)
+  permissionAction   PermissionAction @relation(fields: [permissionActionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleModuleId, permissionActionId])
+
+  @@map("role_module_permissions")
+}
+
+// =============================================================
+// USUARIOS
+// =============================================================
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
   password  String
   name      String?
-  role      Role     @default(EXPLORER)
+  phone     String?
+  avatar    String?
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id])
   points    Int      @default(0)
   totalExp  Int      @default(0)
+  profile   Json?
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  profile   Json?
 
   discoveries   Discovery[]
   redemptions   Redemption[]
@@ -26,27 +167,33 @@ model User {
   reviews       Review[]
   notifications Notification[]
   favorites     Favorite[]
+  companies     Company[]        // Usuario PARTNER puede administrar empresas
+
+  @@map("users")
 }
+
+// =============================================================
+// CATEGORÍAS
+// Relación many-to-many con Place y con Route
+// =============================================================
 
 model Category {
   id          String   @id @default(uuid())
   name        String   @unique
   description String?
-  icon        String?  // SVG or URL for Flutter
+  icon        String?
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
-  
-  places      Place[]
-  routes      Route[]
+
+  placeCategories PlaceCategory[]
+  routeCategories RouteCategory[]
+
+  @@map("categories")
 }
 
-model Difficulty {
-  id          String   @id @default(uuid())
-  level       String   @unique // e.g., "EASY", "MEDIUM", "HARD"
-  description String?
-  color       String?  // Hex code for Flutter UI
-  
-  routes      Route[]
-}
+// =============================================================
+// LUGARES (Places)
+// =============================================================
 
 model Place {
   id          String   @id @default(uuid())
@@ -54,132 +201,269 @@ model Place {
   description String
   latitude    Float
   longitude   Float
-  categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id])
+  address     String?
+  district    String?
+  city        String?
+  country     String?  @default("PE")
   metadata    Json?
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  partners     Partner[]
-  routePlaces  RoutePlace[]
-  discoveries  Discovery[]
-  media        Media[]
-  reviews      Review[]
-  favorites    Favorite[]
+  categories            PlaceCategory[]
+  routePlaces           RoutePlace[]
+  discoveries           Discovery[]
+  media                 Media[]
+  reviews               Review[]
+  favorites             Favorite[]
+  businessLocationPlaces BusinessLocationPlace[] // Locales comerciales en este lugar
+
+  @@map("places")
 }
+
+/// Pivote many-to-many: Place ↔ Category
+model PlaceCategory {
+  id         String   @id @default(uuid())
+  placeId    String
+  categoryId String
+  place      Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([placeId, categoryId])
+
+  @@map("place_categories")
+}
+
+// =============================================================
+// RUTAS (Routes)
+// =============================================================
 
 model Route {
-  id           String   @id @default(uuid())
-  name         String
-  description  String?
-  categoryId   String
-  category     Category @relation(fields: [categoryId], references: [id])
-  difficultyId String
-  difficulty   Difficulty @relation(fields: [difficultyId], references: [id])
-  metadata     Json?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String          @id @default(uuid())
+  name           String
+  description    String?
+  difficultyId   String
+  difficulty     DifficultyLevel @relation(fields: [difficultyId], references: [id])
+  estimatedTime  Int?            // Minutos estimados
+  distanceKm     Float?
+  metadata       Json?
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
-  places       RoutePlace[]
-  media        Media[]
-  reviews      Review[]
-  favorites    Favorite[]
+  categories  RouteCategory[]
+  places      RoutePlace[]
+  media       Media[]
+  reviews     Review[]
+  favorites   Favorite[]
+
+  @@map("routes")
 }
 
+/// Pivote many-to-many: Route ↔ Category
+model RouteCategory {
+  id         String   @id @default(uuid())
+  routeId    String
+  categoryId String
+  route      Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([routeId, categoryId])
+
+  @@map("route_categories")
+}
+
+/// Orden de lugares dentro de una ruta
 model RoutePlace {
-  id      String @id @default(uuid())
+  id      String  @id @default(uuid())
   order   Int
+  notes   String? // Indicaciones en ese punto
   routeId String
   placeId String
-  route   Route  @relation(fields: [routeId], references: [id])
-  place   Place  @relation(fields: [placeId], references: [id])
+  route   Route   @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  place   Place   @relation(fields: [placeId], references: [id], onDelete: Cascade)
 
   @@unique([routeId, placeId])
+
+  @@map("route_places")
 }
 
-// Gamification Models
+// =============================================================
+// EMPRESAS Y LOCALES COMERCIALES
+// Flujo: Company → BusinessLocation → BusinessLocationPlace → Place
+// =============================================================
+
+/// Empresa que se conecta a la app para vender sus productos/servicios
+model Company {
+  id          String   @id @default(uuid())
+  name        String
+  ruc         String?  @unique // RUC peruano u otro identificador fiscal
+  description String?
+  logo        String?
+  website     String?
+  phone       String?
+  email       String?
+  isActive    Boolean  @default(true)
+  ownerId     String                    // Usuario PARTNER responsable
+  owner       User     @relation(fields: [ownerId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  locations   BusinessLocation[]
+  rewards     Reward[]
+
+  @@map("companies")
+}
+
+/// Local físico de una empresa (puede haber múltiples locales por empresa)
+model BusinessLocation {
+  id          String   @id @default(uuid())
+  name        String                    // e.g. "Tienda Centro", "Sucursal Norte"
+  description String?
+  phone       String?
+  email       String?
+  // Coordenadas propias del local
+  latitude    Float?
+  longitude   Float?
+  address     String?
+  district    String?
+  city        String?
+  country     String?  @default("PE")
+  isActive    Boolean  @default(true)
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relación con Places del mapa turístico (un local puede estar dentro de un Place)
+  places      BusinessLocationPlace[]
+  rewards     Reward[]
+
+  @@map("business_locations")
+}
+
+/// Pivote: BusinessLocation ↔ Place
+/// Un local puede estar vinculado a uno o más Places turísticos
+model BusinessLocationPlace {
+  id                 String           @id @default(uuid())
+  businessLocationId String
+  placeId            String
+  businessLocation   BusinessLocation @relation(fields: [businessLocationId], references: [id], onDelete: Cascade)
+  place              Place            @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  notes              String?          // e.g. "Local dentro del mercado principal"
+
+  @@unique([businessLocationId, placeId])
+
+  @@map("business_location_places")
+}
+
+// =============================================================
+// GAMIFICACIÓN
+// =============================================================
+
+/// Registro de descubrimiento de un lugar por un usuario
 model Discovery {
   id        String   @id @default(uuid())
   userId    String
   placeId   String
-  points    Int      @default(10) // Points earned for this discovery
+  points    Int      @default(10)
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id])
   place     Place    @relation(fields: [placeId], references: [id])
+
+  @@unique([userId, placeId]) // Un usuario solo descubre un lugar una vez
+  @@map("discoveries")
 }
 
+/// Premios ofrecidos por empresas/locales a cambio de puntos
 model Reward {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  cost        Int      // Points needed
-  stock       Int      @default(-1) // -1 for infinite
-  partnerId   String
-  partner     Partner  @relation(fields: [partnerId], references: [id])
-  createdAt   DateTime @default(now())
+  id                 String            @id @default(uuid())
+  name               String
+  description        String?
+  cost               Int               // Puntos necesarios para canjear
+  stock              Int               @default(-1) // -1 = ilimitado
+  isActive           Boolean           @default(true)
+  companyId          String?           // Reward a nivel empresa
+  company            Company?          @relation(fields: [companyId], references: [id])
+  businessLocationId String?           // Reward a nivel local específico
+  businessLocation   BusinessLocation? @relation(fields: [businessLocationId], references: [id])
+  createdAt          DateTime          @default(now())
 
-  redemptions Redemption[]
+  redemptions        Redemption[]
+
+  @@map("rewards")
 }
 
+/// Canje de un reward por un usuario
 model Redemption {
   id        String   @id @default(uuid())
   userId    String
   rewardId  String
-  code      String   @unique // Generated code to claim
+  code      String   @unique // Código generado para reclamar físicamente
   claimed   Boolean  @default(false)
+  claimedAt DateTime?
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id])
   reward    Reward   @relation(fields: [rewardId], references: [id])
+
+  @@map("redemptions")
 }
 
+/// Definición de logros/badges del sistema
 model Achievement {
   id          String   @id @default(uuid())
   name        String
   description String
   icon        String?
+  points      Int      @default(0) // Puntos que otorga al desbloquearse
   criteria    Json?    // e.g. { "type": "visit_count", "target": 5 }
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
-  users       UserAchievement[]
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
 }
 
+/// Logros desbloqueados por usuario
 model UserAchievement {
-  id            String   @id @default(uuid())
+  id            String      @id @default(uuid())
   userId        String
   achievementId String
-  createdAt     DateTime @default(now())
+  createdAt     DateTime    @default(now())
 
   user          User        @relation(fields: [userId], references: [id])
   achievement   Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
 }
 
-model Partner {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  userId      String?
-  placeId     String
-  place       Place    @relation(fields: [placeId], references: [id])
-  rewards     Reward[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
+// =============================================================
+// MEDIA, RESEÑAS, NOTIFICACIONES, FAVORITOS
+// =============================================================
 
-// Expanded Features (Pro-Level)
+/// Archivos multimedia vinculados a lugares, rutas o usuarios
 model Media {
-  id        String   @id @default(uuid())
-  url       String   // URL del recurso
-  type      MediaType @default(IMAGE)
-  placeId   String?
-  place     Place?   @relation(fields: [placeId], references: [id])
-  routeId   String?
-  route     Route?   @relation(fields: [routeId], references: [id])
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
+  id          String    @id @default(uuid())
+  url         String
+  caption     String?
+  mediaTypeId String
+  mediaType   MediaType @relation(fields: [mediaTypeId], references: [id])
+  placeId     String?
+  place       Place?    @relation(fields: [placeId], references: [id])
+  routeId     String?
+  route       Route?    @relation(fields: [routeId], references: [id])
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+  createdAt   DateTime  @default(now())
+
+  @@map("media")
 }
 
+/// Reseñas de lugares y rutas
 model Review {
   id        String   @id @default(uuid())
   rating    Int      @default(5) // 1 a 5 estrellas
@@ -191,19 +475,27 @@ model Review {
   place     Place?   @relation(fields: [placeId], references: [id])
   route     Route?   @relation(fields: [routeId], references: [id])
   createdAt DateTime @default(now())
+
+  @@map("reviews")
 }
 
+/// Notificaciones del sistema para usuarios
 model Notification {
-  id        String   @id @default(uuid())
-  title     String
-  message   String
-  type      NotificationType @default(SYSTEM)
-  read      Boolean  @default(false)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
+  id                 String           @id @default(uuid())
+  title              String
+  message            String
+  notificationTypeId String
+  notificationType   NotificationType @relation(fields: [notificationTypeId], references: [id])
+  read               Boolean          @default(false)
+  readAt             DateTime?
+  userId             String
+  user               User             @relation(fields: [userId], references: [id])
+  createdAt          DateTime         @default(now())
+
+  @@map("notifications")
 }
 
+/// Favoritos: lugares y rutas guardados por un usuario
 model Favorite {
   id        String   @id @default(uuid())
   userId    String
@@ -216,22 +508,6 @@ model Favorite {
 
   @@unique([userId, placeId])
   @@unique([userId, routeId])
-}
 
-enum Role {
-  EXPLORER
-  PARTNER
-  ADMIN
-}
-
-enum MediaType {
-  IMAGE
-  VIDEO
-}
-
-enum NotificationType {
-  SYSTEM
-  REWARD
-  LEVEL_UP
-  SOCIAL
+  @@map("favorites")
 }
