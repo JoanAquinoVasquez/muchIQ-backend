@@ -13,15 +13,39 @@ model User {
   password  String
   name      String?
   role      Role     @default(EXPLORER)
-  points    Int      @default(0)   // For rewards
-  totalExp  Int      @default(0)   // For levels
+  points    Int      @default(0)
+  totalExp  Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   profile   Json?
 
-  discoveries  Discovery[]
-  redemptions  Redemption[]
-  achievements UserAchievement[]
+  discoveries   Discovery[]
+  redemptions   Redemption[]
+  achievements  UserAchievement[]
+  media         Media[]
+  reviews       Review[]
+  notifications Notification[]
+  favorites     Favorite[]
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  icon        String?  // SVG or URL for Flutter
+  createdAt   DateTime @default(now())
+  
+  places      Place[]
+  routes      Route[]
+}
+
+model Difficulty {
+  id          String   @id @default(uuid())
+  level       String   @unique // e.g., "EASY", "MEDIUM", "HARD"
+  description String?
+  color       String?  // Hex code for Flutter UI
+  
+  routes      Route[]
 }
 
 model Place {
@@ -30,7 +54,8 @@ model Place {
   description String
   latitude    Float
   longitude   Float
-  category    Category @default(GENERAL)
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
   metadata    Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -38,19 +63,27 @@ model Place {
   partners     Partner[]
   routePlaces  RoutePlace[]
   discoveries  Discovery[]
+  media        Media[]
+  reviews      Review[]
+  favorites    Favorite[]
 }
 
 model Route {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  category    Category @default(GENERAL)
-  difficulty  Difficulty @default(EASY)
-  metadata    Json?    // For AI-generated attributes
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  categoryId   String
+  category     Category @relation(fields: [categoryId], references: [id])
+  difficultyId String
+  difficulty   Difficulty @relation(fields: [difficultyId], references: [id])
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  places      RoutePlace[]
+  places       RoutePlace[]
+  media        Media[]
+  reviews      Review[]
+  favorites    Favorite[]
 }
 
 model RoutePlace {
@@ -133,22 +166,72 @@ model Partner {
   updatedAt   DateTime @updatedAt
 }
 
+// Expanded Features (Pro-Level)
+model Media {
+  id        String   @id @default(uuid())
+  url       String   // URL del recurso
+  type      MediaType @default(IMAGE)
+  placeId   String?
+  place     Place?   @relation(fields: [placeId], references: [id])
+  routeId   String?
+  route     Route?   @relation(fields: [routeId], references: [id])
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int      @default(5) // 1 a 5 estrellas
+  comment   String?
+  userId    String
+  placeId   String?
+  routeId   String?
+  user      User     @relation(fields: [userId], references: [id])
+  place     Place?   @relation(fields: [placeId], references: [id])
+  route     Route?   @relation(fields: [routeId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  type      NotificationType @default(SYSTEM)
+  read      Boolean  @default(false)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  placeId   String?
+  routeId   String?
+  user      User     @relation(fields: [userId], references: [id])
+  place     Place?   @relation(fields: [placeId], references: [id])
+  route     Route?   @relation(fields: [routeId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, placeId])
+  @@unique([userId, routeId])
+}
+
 enum Role {
   EXPLORER
   PARTNER
   ADMIN
 }
 
-enum Category {
-  GENERAL
-  GASTRONOMY
-  CULTURE
-  NATURE
-  ADVENTURE
+enum MediaType {
+  IMAGE
+  VIDEO
 }
 
-enum Difficulty {
-  EASY
-  MEDIUM
-  HARD
+enum NotificationType {
+  SYSTEM
+  REWARD
+  LEVEL_UP
+  SOCIAL
 }
