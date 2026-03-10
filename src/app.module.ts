@@ -8,6 +8,8 @@ import { SystemModulesModule } from './infrastructure/system-modules/system-modu
 import { CategoriesModule } from './infrastructure/categories/categories.module';
 import { PermissionsModule } from './infrastructure/permissions/permissions.module';
 import { RoleModulesModule } from './infrastructure/role-modules/role-modules.module';
+import { CompaniesModule } from './infrastructure/companies/companies.module';
+import { BusinessLocationsModule } from './infrastructure/business-locations/business-locations.module';
 
 @Module({
     imports: [
@@ -20,6 +22,8 @@ import { RoleModulesModule } from './infrastructure/role-modules/role-modules.mo
         CategoriesModule,
         PermissionsModule,
         RoleModulesModule,
+        CompaniesModule,
+        BusinessLocationsModule,
     ],
 })
 export class AppModule {}
