@@ -6,18 +6,27 @@ import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { PermissionsGuard } from './guards/permissions.guard';
+import { PrismaRefreshTokenRepository } from './prisma-refresh-token.repository';
+import { IRefreshTokenRepository } from '../../domain/auth/refresh-token.repository';
 
-// PrismaService lo provee PrismaModule (global), no hay que importarlo aquí
 @Module({
     imports: [
         UsersModule,
         PassportModule,
         JwtModule.register({
             secret: process.env.JWT_SECRET || 'muchiq-secret-key-2025',
-            signOptions: { expiresIn: '1d' },
+            signOptions: { expiresIn: '15m' }, // access token corto — el cliente usa refresh para renovar
         }),
     ],
-    providers: [AuthService, JwtStrategy, PermissionsGuard],
+    providers: [
+        AuthService,
+        JwtStrategy,
+        PermissionsGuard,
+        {
+            provide: IRefreshTokenRepository,
+            useClass: PrismaRefreshTokenRepository,
+        },
+    ],
     controllers: [AuthController],
     exports: [AuthService, PermissionsGuard],
 })

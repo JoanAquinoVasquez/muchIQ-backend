@@ -1,10 +1,11 @@
-// Lo que devuelve el endpoint de login/register
+// Lo que devuelve login y register (auto-login)
 export interface AuthResponse {
-    access_token: string;
+    access_token: string;   // expira en 15 minutos
+    refresh_token: string;  // expira en 7 días, guardado en DB
     user: AuthUserInfo;
 }
 
-// Datos del usuario que viajan al cliente (sin password)
+// Datos del usuario que viajan al cliente (sin campos sensibles)
 export interface AuthUserInfo {
     id: string;
     email: string;

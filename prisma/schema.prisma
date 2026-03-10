@@ -162,9 +162,21 @@ model User {
   favorites     Favorite[]
   companies     Company[]        // Usuario PARTNER puede administrar empresas
   transactions  PointTransaction[]
+  refreshTokens RefreshToken[]
 
   @@map("users")
 }
+  model RefreshToken {
+    id        String    @id @default(uuid())
+    token     String    @unique
+    userId    String
+    user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    expiresAt DateTime
+    revokedAt DateTime?
+    createdAt DateTime  @default(now())
+
+    @@map("refresh_tokens")
+  }
 
 // =============================================================
 // CATEGORÍAS
