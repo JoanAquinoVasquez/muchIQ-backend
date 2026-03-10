@@ -10,6 +10,14 @@ import { PermissionsModule } from './infrastructure/permissions/permissions.modu
 import { RoleModulesModule } from './infrastructure/role-modules/role-modules.module';
 import { CompaniesModule } from './infrastructure/companies/companies.module';
 import { BusinessLocationsModule } from './infrastructure/business-locations/business-locations.module';
+import { GamificationAchievementsModule } from './infrastructure/gamification/achievements/achievements.module';
+import { GamificationDiscoveriesModule } from './infrastructure/gamification/discoveries/discoveries.module';
+import { GamificationRewardsModule } from './infrastructure/gamification/rewards/rewards.module';
+import { ReviewsModule } from './infrastructure/reviews/reviews.module';
+import { DifficultyLevelsModule } from './infrastructure/routes/difficulty-levels/difficulty-levels.module';
+import { RoutesModule } from './infrastructure/routes/routes/routes.module';
+import { MediaModule } from './infrastructure/media/media.module';
+import { NotificationsModule } from './infrastructure/notifications/notifications.module';
 
 @Module({
     imports: [
@@ -24,6 +32,14 @@ import { BusinessLocationsModule } from './infrastructure/business-locations/bus
         RoleModulesModule,
         CompaniesModule,
         BusinessLocationsModule,
+        GamificationAchievementsModule,
+        GamificationDiscoveriesModule,
+        GamificationRewardsModule,
+        ReviewsModule,
+        DifficultyLevelsModule,
+        RoutesModule,
+        MediaModule,
+        NotificationsModule,
     ],
 })
 export class AppModule {}

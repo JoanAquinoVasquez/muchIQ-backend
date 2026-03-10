@@ -9,26 +9,26 @@ export class PlacesController {
     constructor(private readonly placesService: PlacesService) { }
 
     @Get()
-    @ApiOperation({ summary: 'Get all places' })
+    @ApiOperation({ summary: 'Obtener todos los lugares' })
     @ApiResponse({ status: 200, description: 'Return all places' })
     async findAll() {
         return this.placesService.getAllPlaces();
     }
 
     @Get('filter')
-    @ApiOperation({ summary: 'Filter places by category ID' })
+    @ApiOperation({ summary: 'Filtrar lugares por ID de categoría' })
     async findByCategory(@Query('categoryId') categoryId: string) {
         return this.placesService.getPlacesByCategory(categoryId);
     }
 
     @Get(':id')
-    @ApiOperation({ summary: 'Get place by ID' })
+    @ApiOperation({ summary: 'Obtener lugar por ID' })
     async findOne(@Param('id') id: string) {
         return this.placesService.getPlaceById(id);
     }
 
     @Post()
-    @ApiOperation({ summary: 'Create a new place (Admin/Owner only in future)' })
+    @ApiOperation({ summary: 'Crear un nuevo lugar (Solo Admin/Propietario en el futuro)' })
     @ApiResponse({ status: 201, description: 'Place successfully created' })
     async create(@Body() createPlaceDto: CreatePlaceDto) {
         return this.placesService.createPlace(createPlaceDto);
