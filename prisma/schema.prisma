@@ -1,11 +1,3 @@
-// =============================================================
-// schema.prisma
-// Arquitecto: Senior DB Architect
-// Descripción: Schema completo sin enums, todo relacional por ID
-// Relaciones many-to-many explícitas, empresas/locales, módulos
-// con jerarquía parent_id, y control de permisos por rol
-// =============================================================
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -166,8 +158,10 @@ model User {
   media         Media[]
   reviews       Review[]
   notifications Notification[]
+  classifications FlavorClassification[] // Preferencias de sabor/estilo
   favorites     Favorite[]
   companies     Company[]        // Usuario PARTNER puede administrar empresas
+  transactions  PointTransaction[]
 
   @@map("users")
 }
@@ -338,6 +332,7 @@ model BusinessLocation {
   // Relación con Places del mapa turístico (un local puede estar dentro de un Place)
   places      BusinessLocationPlace[]
   rewards     Reward[]
+  redemptions Redemption[]
 
   @@map("business_locations")
 }
@@ -391,6 +386,7 @@ model Reward {
   createdAt          DateTime          @default(now())
 
   redemptions        Redemption[]
+  media              Media[]
 
   @@map("rewards")
 }
@@ -403,6 +399,8 @@ model Redemption {
   code      String   @unique // Código generado para reclamar físicamente
   claimed   Boolean  @default(false)
   claimedAt DateTime?
+  locationClaimedId String?
+  locationClaimed   BusinessLocation? @relation(fields: [locationClaimedId], references: [id])
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id])
@@ -456,6 +454,8 @@ model Media {
   place       Place?    @relation(fields: [placeId], references: [id])
   routeId     String?
   route       Route?    @relation(fields: [routeId], references: [id])
+  rewardId    String?
+  reward      Reward?   @relation(fields: [rewardId], references: [id])
   userId      String?
   user        User?     @relation(fields: [userId], references: [id])
   createdAt   DateTime  @default(now())
@@ -510,4 +510,31 @@ model Favorite {
   @@unique([userId, routeId])
 
   @@map("favorites")
+}
+
+// =============================================================
+// TRANSACCIONES DE PUNTOS
+// =============================================================
+
+model PointTransaction {
+  id          String   @id @default(uuid())
+  amount      Int      // Puede ser positivo (ganancia) o negativo (canje)
+  reason      String?  // Descripción humana
+  referenceId String?  // ID de Discovery, Achievement o Redemption
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@map("point_transactions")
+}
+
+// Este modelo es para segmentar usuarios por preferencias (IA lo usará)
+model FlavorClassification {
+  id          String   @id @default(uuid())
+  name        String   @unique // e.g. "Artesanal", "Gourmet", "Histórico"
+  description String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@map("flavor_classifications")
 }
