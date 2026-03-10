@@ -30,7 +30,7 @@ export class PrismaUserRepository implements IUserRepository {
                 password: data.password!,
                 name: data.name || null,
                 role: {
-                  connect: { name: 'EXPLORER' } // Default role name
+                  connect: { name: 'EXPLORER' }
                 },
                 points: data.points || 0,
                 totalExp: data.totalExp || 0,

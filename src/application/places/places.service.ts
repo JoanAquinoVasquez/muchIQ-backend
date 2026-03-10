@@ -21,8 +21,8 @@ export class PlacesService {
         return place;
     }
 
-    async getPlacesByCategory(category: string): Promise<Place[]> {
-        return this.placeRepository.findByCategory(category);
+    async getPlacesByCategory(categoryId: string): Promise<Place[]> {
+        return this.placeRepository.findByCategory(categoryId);
     }
 
     async createPlace(data: Partial<Place>): Promise<Place> {

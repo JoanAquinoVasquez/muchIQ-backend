@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsNumber, IsEnum, IsOptional } from 'class-validator';
-import { PlaceCategory } from '../../../domain/places/place.entity';
+import { IsNotEmpty, IsString, IsNumber, IsOptional, IsUUID } from 'class-validator';
 
 export class CreatePlaceDto {
     @ApiProperty({ example: 'Museo Tumbas Reales de Sipán' })
@@ -21,9 +20,9 @@ export class CreatePlaceDto {
     @IsNumber()
     longitude: number;
 
-    @ApiProperty({ enum: PlaceCategory, example: PlaceCategory.CULTURE })
-    @IsEnum(PlaceCategory)
-    category: PlaceCategory;
+    @ApiProperty({ example: 'uuid-de-la-categoria' })
+    @IsUUID()
+    categoryId: string;
 
     @ApiProperty({ required: false, example: { entryFee: 10, openHours: '9:00 - 17:00' } })
     @IsOptional()

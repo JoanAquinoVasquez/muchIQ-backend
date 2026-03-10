@@ -16,9 +16,9 @@ export class PlacesController {
     }
 
     @Get('filter')
-    @ApiOperation({ summary: 'Filter places by category' })
-    async findByCategory(@Query('category') category: string) {
-        return this.placesService.getPlacesByCategory(category);
+    @ApiOperation({ summary: 'Filter places by category ID' })
+    async findByCategory(@Query('categoryId') categoryId: string) {
+        return this.placesService.getPlacesByCategory(categoryId);
     }
 
     @Get(':id')

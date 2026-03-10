@@ -1,41 +1,74 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { IPlaceRepository } from '../../domain/places/place.repository';
-import { Place, PlaceCategory } from '../../domain/places/place.entity';
+import { Place } from '../../domain/places/place.entity';
 
 @Injectable()
 export class PrismaPlaceRepository implements IPlaceRepository {
     constructor(private prisma: PrismaService) { }
 
     async findById(id: string): Promise<Place | null> {
-        const place = await this.prisma.place.findUnique({ where: { id } });
-        return place ? new Place({ ...place, category: place.category as PlaceCategory }) : null;
+        const place = await this.prisma.place.findUnique({ 
+            where: { id },
+            include: { 
+                categories: {
+                    include: { category: true }
+                } 
+            }
+        });
+        return place ? new Place(place as any) : null;
     }
 
     async findAll(): Promise<Place[]> {
-        const places = await this.prisma.place.findMany();
-        return places.map(p => new Place({ ...p, category: p.category as PlaceCategory }));
+        const places = await this.prisma.place.findMany({
+            include: { 
+                categories: {
+                    include: { category: true }
+                } 
+            }
+        });
+        return places.map(p => new Place(p as any));
     }
 
-    async findByCategory(category: string): Promise<Place[]> {
+    async findByCategory(categoryId: string): Promise<Place[]> {
         const places = await this.prisma.place.findMany({
-            where: { category: category as any }
+            where: {
+                categories: {
+                    some: { categoryId }
+                }
+            },
+            include: { 
+                categories: {
+                    include: { category: true }
+                } 
+            }
         });
-        return places.map(p => new Place({ ...p, category: p.category as PlaceCategory }));
+        return places.map(p => new Place(p as any));
     }
 
     async create(data: Partial<Place>): Promise<Place> {
+        const { categories, ...placeData } = data as any;
         const place = await this.prisma.place.create({
             data: {
                 name: data.name!,
                 description: data.description!,
                 latitude: data.latitude!,
                 longitude: data.longitude!,
-                category: data.category as any || 'GENERAL',
                 metadata: data.metadata || {},
+                // Si viene un categoryId en el DTO/data, lo conectamos
+                ...( (data as any).categoryId ? {
+                    categories: {
+                        create: { categoryId: (data as any).categoryId }
+                    }
+                } : {})
+            },
+            include: { 
+                categories: {
+                    include: { category: true }
+                } 
             }
         });
-        return new Place({ ...place, category: place.category as PlaceCategory });
+        return new Place(place as any);
     }
 
     async update(id: string, data: Partial<Place>): Promise<Place> {
@@ -46,10 +79,15 @@ export class PrismaPlaceRepository implements IPlaceRepository {
                 description: data.description,
                 latitude: data.latitude,
                 longitude: data.longitude,
-                category: data.category as any,
                 metadata: data.metadata,
+                isActive: data.isActive
+            },
+            include: { 
+                categories: {
+                    include: { category: true }
+                } 
             }
         });
-        return new Place({ ...place, category: place.category as PlaceCategory });
+        return new Place(place as any);
     }
 }

@@ -12,4 +12,4 @@ import { PlacesModule } from './infrastructure/places/places.module';
     PlacesModule,
   ],
 })
-export class AppModule { }
+export class AppModule {}
