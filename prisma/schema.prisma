@@ -202,8 +202,9 @@ model Category {
 // =============================================================
 
 model Place {
-  id          String   @id @default(uuid())
-  name        String
+  id             String   @id @default(uuid())
+  googlePlaceId  String?  @unique
+  name           String
   description String
   latitude    Float
   longitude   Float
@@ -222,7 +223,8 @@ model Place {
   media                 Media[]
   reviews               Review[]
   favorites             Favorite[]
-  businessLocationPlaces BusinessLocationPlace[] // Locales comerciales en este lugar
+  businessLocationPlaces BusinessLocationPlace[]
+  placeDishes           PlaceDish[] // <--- ADDED THIS RELATION FIELD
 
   @@map("places")
 }
@@ -452,10 +454,45 @@ model UserAchievement {
 }
 
 // =============================================================
+// COMIDA Y GASTRONOMÍA (Dishes)
+// =============================================================
+
+model Dish {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String
+  history     String?  // Contexto cultural/histórico
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  placeDishes PlaceDish[]
+  media       Media[]
+  reviews     Review[]
+  favorites   Favorite[]
+
+  @@map("dishes")
+}
+
+/// Pivote many-to-many: Dish ↔ Place (Restaurantes que lo sirven)
+model PlaceDish {
+  id          String  @id @default(uuid())
+  dishId      String
+  placeId     String
+  price       Float?  // Precio referencial en ese local
+  isSpecialty Boolean @default(false) // ¿Es la especialidad de la casa?
+  dish        Dish    @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  place       Place   @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@unique([dishId, placeId])
+  @@map("place_dishes")
+}
+
+// =============================================================
 // MEDIA, RESEÑAS, NOTIFICACIONES, FAVORITOS
 // =============================================================
 
-/// Archivos multimedia vinculados a lugares, rutas o usuarios
+/// Archivos multimedia vinculados a lugares, rutas, platos o usuarios
 model Media {
   id          String    @id @default(uuid())
   url         String
@@ -466,6 +503,8 @@ model Media {
   place       Place?    @relation(fields: [placeId], references: [id])
   routeId     String?
   route       Route?    @relation(fields: [routeId], references: [id])
+  dishId      String?
+  dish        Dish?     @relation(fields: [dishId], references: [id])
   rewardId    String?
   reward      Reward?   @relation(fields: [rewardId], references: [id])
   userId      String?
@@ -475,7 +514,7 @@ model Media {
   @@map("media")
 }
 
-/// Reseñas de lugares y rutas
+/// Reseñas de lugares, rutas y platos
 model Review {
   id        String   @id @default(uuid())
   rating    Int      @default(5) // 1 a 5 estrellas
@@ -483,9 +522,11 @@ model Review {
   userId    String
   placeId   String?
   routeId   String?
+  dishId    String?
   user      User     @relation(fields: [userId], references: [id])
   place     Place?   @relation(fields: [placeId], references: [id])
   route     Route?   @relation(fields: [routeId], references: [id])
+  dish      Dish?    @relation(fields: [dishId], references: [id])
   createdAt DateTime @default(now())
 
   @@map("reviews")
@@ -507,19 +548,22 @@ model Notification {
   @@map("notifications")
 }
 
-/// Favoritos: lugares y rutas guardados por un usuario
+/// Favoritos: lugares, rutas y platos guardados por un usuario
 model Favorite {
   id        String   @id @default(uuid())
   userId    String
   placeId   String?
   routeId   String?
+  dishId    String?
   user      User     @relation(fields: [userId], references: [id])
   place     Place?   @relation(fields: [placeId], references: [id])
   route     Route?   @relation(fields: [routeId], references: [id])
+  dish      Dish?    @relation(fields: [dishId], references: [id])
   createdAt DateTime @default(now())
 
   @@unique([userId, placeId])
   @@unique([userId, routeId])
+  @@unique([userId, dishId])
 
   @@map("favorites")
 }

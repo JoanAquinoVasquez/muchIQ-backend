@@ -18,28 +18,30 @@ import { DifficultyLevelsModule } from './infrastructure/routes/difficulty-level
 import { RoutesModule } from './infrastructure/routes/routes/routes.module';
 import { MediaModule } from './infrastructure/media/media.module';
 import { NotificationsModule } from './infrastructure/notifications/notifications.module';
+import { DishesModule } from './infrastructure/dishes/dishes.module';
 
 @Module({
-    imports: [
-        PrismaModule,
-        AuthModule,
-        UsersModule,
-        PlacesModule,
-        RolesModule,
-        SystemModulesModule,
-        CategoriesModule,
-        PermissionsModule,
-        RoleModulesModule,
-        CompaniesModule,
-        BusinessLocationsModule,
-        GamificationAchievementsModule,
-        GamificationDiscoveriesModule,
-        GamificationRewardsModule,
-        ReviewsModule,
-        DifficultyLevelsModule,
-        RoutesModule,
-        MediaModule,
-        NotificationsModule,
-    ],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    UsersModule,
+    PlacesModule,
+    RolesModule,
+    SystemModulesModule,
+    CategoriesModule,
+    PermissionsModule,
+    RoleModulesModule,
+    CompaniesModule,
+    BusinessLocationsModule,
+    GamificationAchievementsModule,
+    GamificationDiscoveriesModule,
+    GamificationRewardsModule,
+    ReviewsModule,
+    DifficultyLevelsModule,
+    RoutesModule,
+    MediaModule,
+    NotificationsModule,
+    DishesModule,
+  ],
 })
 export class AppModule {}

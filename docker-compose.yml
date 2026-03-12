@@ -5,13 +5,49 @@ services:
     image: postgres:15-alpine
     container_name: muchiq-postgres
     ports:
-      - '5432:5432'
+      - '${DB_PORT:-5432}:5432'
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: muchiq
+      POSTGRES_USER: ${DB_USER:-user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-muchiq}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - muchiq-network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: muchiq-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@muchiq.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - '${PGADMIN_PORT:-8080}:80'
+    depends_on:
+      - postgres
+    networks:
+      - muchiq-network
+
+  app:
+    build: .
+    container_name: muchiq-app
+    ports:
+      - '${PORT:-3000}:${PORT:-3000}'
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-user}:${DB_PASSWORD:-password}@postgres:${DB_PORT:-5432}/${DB_NAME:-muchiq}?schema=public
+    depends_on:
+      - postgres
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - muchiq-network
 
 volumes:
   postgres_data:
+
+networks:
+  muchiq-network:
+    driver: bridge
